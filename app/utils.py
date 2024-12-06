@@ -6,7 +6,8 @@ import logging
 from config import (
     TTS_MODEL_NAME, TTS_OUTPUT_DIR, 
     SVC_MODEL_PATH, SVC_CONFIG_PATH, SVC_OUTPUT_DIR,
-    SVC_DIR, AUDIO_SAMPLE_RATE, AUDIO_CHANNELS
+    SVC_DIR, AUDIO_SAMPLE_RATE, AUDIO_CHANNELS,
+    HUBERT_MODEL_PATH, SVC_INFERENCE_CONFIG
 )
 
 # 配置日志
@@ -32,19 +33,39 @@ def setup_svc():
     """检查并设置so-vits-svc环境"""
     if not os.path.exists(SVC_DIR):
         raise RuntimeError(f"SVC directory not found at {SVC_DIR}")
-    if not os.path.exists(SVC_MODEL_PATH):
-        raise RuntimeError(f"SVC model not found at {SVC_MODEL_PATH}")
-    if not os.path.exists(SVC_CONFIG_PATH):
-        raise RuntimeError(f"SVC config not found at {SVC_CONFIG_PATH}")
     
-    # 检查CUDA可用性
+    # 检查必要的模型文件
+    required_files = {
+        'SVC model': SVC_MODEL_PATH,
+        'SVC config': SVC_CONFIG_PATH,
+        'Hubert model': HUBERT_MODEL_PATH
+    }
+    
+    for name, path in required_files.items():
+        if not os.path.exists(path):
+            raise RuntimeError(f"{name} not found at {path}")
+    
+    # 验证模型文件
     try:
         import torch
-        if not torch.cuda.is_available():
-            raise RuntimeError("CUDA is not available")
-        logger.info(f"CUDA is available: {torch.cuda.get_device_name(0)}")
-    except ImportError:
-        raise RuntimeError("PyTorch is not installed")
+        # 检查hubert模型
+        hubert = torch.load(HUBERT_MODEL_PATH, map_location='cpu')
+        if not isinstance(hubert, dict) or 'model' not in hubert:
+            raise RuntimeError("Invalid hubert model file")
+            
+        # 检查SVC模型
+        svc_model = torch.load(SVC_MODEL_PATH, map_location='cpu')
+        if not isinstance(svc_model, dict):
+            raise RuntimeError("Invalid SVC model file")
+            
+        # 检查CUDA
+        if SVC_INFERENCE_CONFIG['device'].startswith('cuda'):
+            if not torch.cuda.is_available():
+                raise RuntimeError("CUDA is not available")
+            logger.info(f"CUDA is available: {torch.cuda.get_device_name(0)}")
+    except Exception as e:
+        logger.error(f"Model validation failed: {str(e)}")
+        raise
 
 def check_file_size(file_path):
     """检查文件大小"""
@@ -85,6 +106,26 @@ def get_safe_filename(filename):
         filename = str(uuid.uuid4())
     return filename
 
+def convert_audio_format(input_path, output_format='wav'):
+    """转换音频格式"""
+    try:
+        import soundfile as sf
+        import librosa
+        
+        # 读取音频
+        y, sr = librosa.load(input_path, sr=AUDIO_SAMPLE_RATE, mono=True)
+        
+        # 生成输出路径
+        output_path = os.path.splitext(input_path)[0] + f'.{output_format}'
+        
+        # 保存为新格式
+        sf.write(output_path, y, sr, format=output_format)
+        
+        return output_path
+    except Exception as e:
+        logger.error(f"Audio format conversion failed: {str(e)}")
+        raise
+
 def generate_tts(text, pitch, speed):
     """生成TTS音频"""
     global tts
@@ -93,24 +134,33 @@ def generate_tts(text, pitch, speed):
         
     try:
         unique_id = uuid.uuid4().hex
-        filename = get_safe_filename(f"tts_{unique_id}.wav")
-        file_path = os.path.join(TTS_OUTPUT_DIR, filename)
+        temp_path = os.path.join(TTS_OUTPUT_DIR, f"temp_{unique_id}.wav")
+        final_path = os.path.join(TTS_OUTPUT_DIR, f"tts_{unique_id}.wav")
         
         # 生成音频
         tts.tts_to_file(
             text=text,
-            file_path=file_path,
+            file_path=temp_path,
             speed=speed,
             pitch=pitch
         )
         
-        check_file_size(file_path)
-        validate_audio_file(file_path)
+        # 验证临时文件
+        if not os.path.exists(temp_path):
+            raise Exception("TTS failed to generate audio file")
+            
+        # 转换格式并验证
+        final_path = convert_audio_format(temp_path)
+        check_file_size(final_path)
+        validate_audio_file(final_path)
         
-        return file_path
+        # 清理临时文件
+        cleanup_files(temp_path)
+        
+        return final_path
     except Exception as e:
         logger.error(f"TTS generation failed: {str(e)}")
-        cleanup_files(file_path)
+        cleanup_files(temp_path, final_path)
         raise
 
 def apply_svc(tts_path, melody):
@@ -132,8 +182,18 @@ def apply_svc(tts_path, melody):
             '--input', tts_path,
             '--output', svc_path,
             '--melody', melody,
-            '--device', 'cuda:0'
+            '--device', SVC_INFERENCE_CONFIG['device'],
+            '--speaker_id', str(SVC_INFERENCE_CONFIG['speaker_id']),
+            '--noise_scale', str(SVC_INFERENCE_CONFIG['noise_scale']),
+            '--f0_method', SVC_INFERENCE_CONFIG['f0_method']
         ]
+        
+        if SVC_INFERENCE_CONFIG['auto_predict_f0']:
+            svc_command.append('--auto_predict_f0')
+            
+        if SVC_INFERENCE_CONFIG['cluster_model_path']:
+            svc_command.extend(['--cluster_model_path', 
+                              SVC_INFERENCE_CONFIG['cluster_model_path']])
         
         # 执行SVC处理
         result = subprocess.run(
@@ -150,7 +210,8 @@ def apply_svc(tts_path, melody):
         if not os.path.exists(svc_path):
             raise Exception("SVC failed to generate audio file")
             
-        check_file_size(svc_path)  # 添加文件大小检查
+        check_file_size(svc_path)
+        validate_audio_file(svc_path)
         
         return svc_path
     except Exception as e:

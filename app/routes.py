@@ -4,8 +4,12 @@ from .tasks import process_task, process_batch_task
 import os
 import json
 from werkzeug.utils import secure_filename
+import logging
+from config import ALLOWED_EXTENSIONS
 
 main = Blueprint('main', __name__)
+
+logger = logging.getLogger(__name__)
 
 @main.route('/')
 def index():
@@ -117,8 +121,11 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@main.route('/upload', methods=['POST'])
+@main.route('/upload', methods=['GET', 'POST'])
 def upload():
+    if request.method == 'GET':
+        return render_template('upload.html')
+        
     try:
         # 验证文本
         text = validate_text_input(request.form.get('text', ''))

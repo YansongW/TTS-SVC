@@ -8,7 +8,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-@celery.task(bind=True)
+@celery.task(bind=True, max_retries=3, default_retry_delay=60)
 def process_task(self, task_id, batch_id=None):
     """处理单个任务"""
     task = Task.query.get(task_id)
@@ -39,39 +39,58 @@ def process_task(self, task_id, batch_id=None):
         
         # 更新批量任务进度
         if batch_id:
-            batch = BatchTask.query.get(batch_id)
-            if batch:
-                batch.completed_tasks += 1
-                batch.update_progress()
-                if batch.completed_tasks == batch.total_tasks:
-                    batch.status = 'Completed'
-                db.session.commit()
+            update_batch_progress.delay(batch_id)
         
-    except SoftTimeLimitExceeded:
-        error_msg = "Task exceeded time limit"
+    except (SoftTimeLimitExceeded, Exception) as e:
+        error_msg = str(e)
+        if isinstance(e, SoftTimeLimitExceeded):
+            error_msg = "Task exceeded time limit"
+        
         task.status = 'Error'
-        task.error_message = error_msg
+        task.error_message = f"Error: {error_msg}\n{traceback.format_exc()}"
         db.session.commit()
-        logger.error(error_msg)
+        
+        logger.error(f"Task {task_id} failed: {error_msg}")
         cleanup_files(task.tts_output, task.svc_output)
         
+        # 重试任务
+        try:
+            self.retry(exc=e)
+        except self.MaxRetriesExceededError:
+            if batch_id:
+                update_batch_status.delay(batch_id, 'Error')
+
+@celery.task
+def update_batch_progress(batch_id):
+    """更新批量任务进度"""
+    try:
+        batch = BatchTask.query.get(batch_id)
+        if batch:
+            completed_count = Task.query.filter_by(
+                batch_id=batch_id,
+                status='Completed'
+            ).count()
+            
+            batch.completed_tasks = completed_count
+            batch.update_progress()
+            
+            if batch.completed_tasks == batch.total_tasks:
+                batch.status = 'Completed'
+            
+            db.session.commit()
     except Exception as e:
-        error_msg = f"Error: {str(e)}\n{traceback.format_exc()}"
-        task.status = 'Error'
-        task.error_message = error_msg
-        db.session.commit()
-        logger.error(error_msg)
-        cleanup_files(task.tts_output, task.svc_output)
-        
-        # 如果是批量任务的一部分，更新批量任务状态
-        if batch_id:
-            try:
-                batch = BatchTask.query.get(batch_id)
-                if batch:
-                    batch.status = 'Error'
-                    db.session.commit()
-            except Exception as be:
-                logger.error(f"Failed to update batch status: {str(be)}")
+        logger.error(f"Failed to update batch progress: {str(e)}")
+
+@celery.task
+def update_batch_status(batch_id, status):
+    """更新批量任务状态"""
+    try:
+        batch = BatchTask.query.get(batch_id)
+        if batch:
+            batch.status = status
+            db.session.commit()
+    except Exception as e:
+        logger.error(f"Failed to update batch status: {str(e)}")
 
 @celery.task(bind=True)
 def process_batch_task(self, batch_id):

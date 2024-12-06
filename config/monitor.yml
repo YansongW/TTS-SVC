@@ -1,0 +1,84 @@
+# 监控间隔配置
+intervals:
+  check: 60  # 检查间隔(秒)
+  cleanup: 86400  # 清理间隔(秒)
+  aggregation: 300  # 数据聚合间隔(秒)
+
+# 资源阈值配置
+thresholds:
+  cpu: 90  # CPU使用率阈值(%)
+  memory: 90  # 内存使用率阈值(%)
+  disk: 90  # 磁盘使用率阈值(%)
+
+# 重试配置
+retry:
+  max_attempts: 3  # 最大重试次数
+  delay: 60  # 重试间隔(秒)
+  backoff_factor: 2  # 重试延迟增长因子
+
+# 数据保留配置
+data_retention:
+  days: 30  # 数据保留天数
+
+# 服务配置
+services:
+  redis:
+    port: 6379
+    startup_timeout: 30
+    health_check:
+      interval: 10
+      timeout: 5
+      retries: 3
+    dependencies: []
+    
+  celery:
+    process: "celery"
+    startup_timeout: 60
+    health_check:
+      interval: 30
+      timeout: 10
+      retries: 3
+    dependencies: ["redis"]
+    
+  flask:
+    port: 5000
+    url: "http://localhost:5000/"
+    startup_timeout: 30
+    health_check:
+      interval: 15
+      timeout: 5
+      retries: 3
+    dependencies: ["redis", "celery"]
+
+# 告警配置
+alerts:
+  email:
+    enabled: true
+    smtp_server: "smtp.example.com"
+    smtp_port: 587
+    username: "alerts@example.com"
+    password: "${SMTP_PASSWORD}"
+    from_address: "alerts@example.com"
+    to_addresses: ["admin@example.com"]
+    
+  webhook:
+    enabled: false
+    url: "https://hooks.slack.com/services/xxx"
+    
+  throttling:
+    default_interval: 1800  # 默认告警间隔(秒)
+    critical_interval: 300  # 严重告警间隔(秒)
+
+# 数据聚合配置
+aggregation:
+  intervals:
+    - 300  # 5分钟
+    - 3600  # 1小时
+    - 86400  # 1天
+  metrics:
+    - name: "cpu_usage"
+      type: "avg"
+    - name: "memory_usage"
+      type: "avg"
+    - name: "disk_usage"
+      type: "max" 

@@ -28,215 +28,292 @@
 - Redis 4.5.1
 - TTS 0.10.3
 - PyTorch (CUDA版本)
+- 其他依赖见requirements.txt
 
-## 安装步骤
+## 详细安装步骤
 
-### 1. 克隆项目
+### 1. 安装基础环境
+
+#### Linux/Mac
+
+```bash
+# 安装Python 3.8+
+sudo apt update
+sudo apt install python3.8 python3.8-venv python3-pip
+
+# 安装Redis
+sudo apt install redis-server
+
+# 安装CUDA (如果需要)
+# 请参考NVIDIA官方文档
+```
+
+#### Windows
+1. 从Python官网下载并安装Python 3.8+
+2. 从Github下载Redis Windows版本
+3. 安装CUDA (如果需要)
+
+### 2. 克隆项目
 
 ```bash
 git clone [项目地址]
 cd tts-svc-system
 ```
 
-### 2. 创建并激活虚拟环境
+### 3. 配置环境变量
+1. 复制环境变量模板
 
 ```bash
-python -m venv venv
+cp .env.example .env
+```
+
+2. 编辑.env文件，配置必要的环境变量：
+
+```env
+# TTS配置
+TTS_MODEL_NAME=tts_models/en/ljspeech/tacotron2-DDC
+
+# SVC配置
+SVC_MODEL_PATH=/path/to/your/model.pth
+SVC_CONFIG_PATH=/path/to/your/config.json
+
+# Redis配置
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# Flask配置
+FLASK_SECRET_KEY=your-secret-key-here
+```
+
+### 4. 下载模型
+
+#### TTS模型
+系统会自动下载TTS模型，如果需要手动下载：
+
+```bash
+# 进入虚拟环境
 source venv/bin/activate  # Linux/Mac
 # 或
 venv\Scripts\activate  # Windows
+
+# 下载模型
+python -c "from TTS.api import TTS; TTS.download_model('tts_models/en/ljspeech/tacotron2-DDC')"
 ```
 
-### 3. ��装依赖
+#### SVC模型
+1. 创建模型目录：
 
 ```bash
-pip install -r requirements.txt
+mkdir -p so-vits-svc/models
+mkdir -p so-vits-svc/configs
 ```
 
-### 4. 安装so-vits-svc
+2. 下载预训练模型：
+- 访问[so-vits-svc releases](https://github.com/svc-develop-team/so-vits-svc/releases)
+- 下载模型文件(.pth)和配置文件(config.json)
+- 将文件放入对应目录
+
+### 5. 初始化项目
+
+#### Linux/Mac
 
 ```bash
-git clone https://github.com/svc-develop-team/so-vits-svc.git
-cd so-vits-svc
-pip install -r requirements.txt
-```
-
-### 5. 下载模型
-1. 下载TTS模型(会自动下载)
-2. 下载或训练so-vits-svc模型，放置到 `so-vits-svc/models/` 目录
-
-### 6. 配置系统
-1. 修改 `config.py` 中的相关配置：
-
-```python
-# 更新SVC模型路径
-SVC_MODEL_PATH = os.path.join(SVC_DIR, 'models', '你的模型文件名.pth')
-SVC_CONFIG_PATH = os.path.join(SVC_DIR, 'configs', '你的配置文件名.json')
-```
-
-2. 确保所有目录权限正确：
-
-```bash
-chmod +x scripts/*.sh  # Linux/Mac
-```
-
-### 7. 初始化数据库
-
-```bash
-flask db upgrade
-```
-
-## 启动系统
-
-### 1. 启动Redis服务器
-
-```bash
-./scripts/start_redis.sh
-# 或手动启动Redis服务器
-```
-
-### 2. 启动Celery Worker
-
-```bash
-./scripts/start_celery.sh
-# 或
-celery -A app.celery worker --loglevel=info
-```
-
-### 3. 启动Web应用
-
-```bash
-./scripts/start_app.sh
-# 或
-python run.py
-```
-
-## 使用说明
-
-### 单条文本转换
-1. 访问系统主页 http://localhost:5000
-2. 点击 "Upload Single Task"
-3. 输入要转换的文本
-4. 设置音高(pitch)和语速(speed)参数
-5. 选择音色(melody)
-6. 提交任务并等待处理完���
-7. 下载生成的音频文件
-
-### 批量转换
-1. 准备文本文件(每行一个文本)
-2. 点击 "Upload Batch Task"
-3. 输入批次名称
-4. 上传文本文件
-5. 设置参数JSON(可以设置多组参数)
-6. 提交批量任务
-7. 在主页查看处理进度
-8. 下载完成的音频文件
-
-### 参数说明
-- pitch: 音高调节，范围0.5-2.0
-- speed: 语速调节，范围0.5-2.0
-- melody: 音色选择，取决于使用的模型
-
-## 常见问题
-
-### 1. 系统启动失败
-- 检查Redis服务是否正常运行
-- 确认所有Python依赖是否正确安装
-- 检查日志文件获取详细错误信息
-
-### 2. 音频生成失败
-- 确认CUDA环境配置正确
-- 检查模型文件是否存在且路径正确
-- 查看日志文件了解具体错误原因
-
-### 3. 批量处理停止
-- 检查Redis连接是否正常
-- 确认Celery worker是否在运行
-- 查看celery.log获取详细信息
-
-## 注意事项
-1. 定期清理output目录下的临时文件
-2. 监控磁盘空间使用情况
-3. 建议定期备份数据库
-4. 在生产环境中建议使用gunicorn等WSGI服务器
-5. 注意保护好模型文件和配置文件
-
-## 日志说明
-- 应用日志: logs/app.log
-- Celery日志: logs/celery.log
-- 日志级别可在config.py中配置
-
-## 目录结构
-```
-project/
-├── app/                # 应用主目录
-├── data/              # 数据文件
-├── logs/              # 日志文件
-├── output/            # 输出文件
-│   ├── tts/          # TTS音频文件
-│   └── svc/          # SVC音频文件
-├── scripts/           # 启动脚本
-├── so-vits-svc/      # SVC模型
-├── static/           # 静态文件
-├── templates/        # 模板文件
-├── config.py         # 配置文件
-├── requirements.txt  # 依赖文件
-└── run.py           # 启动文件
-```
-
-## 开发说明
-如需进行二次开发，请参考以下文件：
-- models.py: 数据模型定义
-- routes.py: 路由和视图函数
-- tasks.py: 异步任务处理
-- utils.py: 工具函数
-# TTS-SVC
-
-## 快速部署
-
-### Linux/Mac用户
-```bash
-# 克隆项目
-git clone [项目地址]
-cd tts-svc-system
+# 设置脚本权限
+chmod +x scripts/*.sh
 
 # 运行部署脚本
-chmod +x scripts/deploy.sh
 ./scripts/deploy.sh
 ```
 
-### Windows用户
-```batch
-# 克隆项目
-git clone [项目地址]
-cd tts-svc-system
+#### Windows
 
+```batch
 # 运行部署脚本
 scripts\deploy.bat
 ```
 
-部署脚本会自动完成以下操作：
-1. 检查系统环境（Python、CUDA、Redis）
-2. 创建并配置虚拟环境
-3. 安装所有依赖
-4. 安装so-vits-svc
-5. 初始化数据库
-6. 启动所有必要服务
+部署脚本会自动完成：
+- 创建虚拟环境
+- 安装依赖
+- 初始化数据库
+- 启动服务
 
-完成后，访问 http://localhost:5000 即可使用系统。
+### 6. 验证安装
+访问 http://localhost:5000 验证系统是否正常运行
 
-### 注意事项
-1. 确保已安装以下基础软件：
-   - Python 3.8+
-   - Git
-   - Redis
-   - CUDA（推荐但不是必需）
+## 使用说明
 
-2. Windows用户可能需要手动安装Redis服务器：
-   - 下载地址：https://github.com/microsoftarchive/redis/releases
-   - 安装为Windows服务
+### 单条文本转换
+1. 访问系统主页
+2. 点击"Upload Single Task"
+3. 输入文本内容
+4. 设置转换参数：
+   - Pitch (音高): 0.5-2.0
+   - Speed (语速): 0.5-2.0
+   - Melody (音色): 根据模型支持的音色选择
+5. 提交任务
+6. 等待处理完成后下载音频文件
 
-3. 如果部署过程中遇到问题：
-   - 检查日志文件：logs/app.log
-   - 检查控制台输出的错误信息
-   - 确保所有端口（5000, 6379）未被占用
+### 批量转换
+1. 准备文本文件：
+   - 文件格式：txt
+   - 每行一个文本
+   - UTF-8编码
+2. 准备参数配置：
+
+```json
+[
+    {
+        "pitch": 1.0,
+        "speed": 1.0,
+        "melody": "default"
+    },
+    {
+        "pitch": 1.2,
+        "speed": 0.8,
+        "melody": "happy"
+    }
+]
+```
+3. 上传文件和配置
+4. 等待处理完成
+5. 下载生成的音频文件
+
+## 故障排除
+
+### 1. 安装问题
+#### 依赖安装失败
+
+```bash
+# 更新pip
+python -m pip install --upgrade pip
+
+# 使用国内镜像
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
+#### CUDA问题
+1. 检查CUDA版本：
+
+```bash
+nvidia-smi
+```
+2. 确保PyTorch版本与CUDA版本匹配
+3. 必要时重新安装对应版本的PyTorch
+
+### 2. 运行问题
+#### Redis连接失败
+1. 检查Redis服务状态：
+
+```bash
+# Linux/Mac
+sudo systemctl status redis
+
+# Windows
+net start redis
+```
+
+2. 检查Redis配置：
+
+```bash
+redis-cli ping
+```
+
+#### 数据库错误
+1. 重置数据库：
+
+```bash
+flask db reset
+flask db upgrade
+```
+
+2. 检查日志：
+
+```bash
+tail -f logs/app.log
+```
+
+#### 任务处理失败
+1. 检查Celery状态：
+
+```bash
+# 查看Celery日志
+tail -f logs/celery.log
+```
+
+2. 重启Celery：
+
+```bash
+# Linux/Mac
+./scripts/start_celery.sh
+
+# Windows
+scripts\start_celery.bat
+```
+
+## 维护指南
+
+### 定期维护
+1. 清理临时文件：
+
+```bash
+python scripts/cleanup.py
+```
+
+2. 备份数据库：
+
+```bash
+python scripts/backup_db.py
+```
+
+3. 更新依赖：
+
+```bash
+pip install -r requirements.txt --upgrade
+```
+
+### 监控
+1. 检查系统状态：
+
+```bash
+python scripts/check_status.py
+```
+
+2. 查看资源使用：
+
+```bash
+python scripts/monitor.py
+```
+
+## 安全建议
+1. 修改默认密钥
+2. 限制上传文件大小
+3. 配置防火墙
+4. 定期更新依赖
+5. 备份重要数据
+
+## 常见问题解答
+
+Q: 如何更换TTS模型？
+A: 修改.env文件中的TTS_MODEL_NAME，选择其他支持的模型。
+
+Q: 如何训练自己的SVC模型？
+A: 参考so-vits-svc项目的训练文档，将训练好的模型放入models目录。
+
+Q: 批量任务处理很慢怎么办？
+A: 调整config.py中的并发设置，增加worker数量。
+
+Q: 如何扩展音色选项？
+A: 训练新的SVC模型，并更新配置文件。
+
+## 贡献指南
+1. Fork项目
+2. 创建特性分支
+3. 提交更改
+4. 发起Pull Request
+
+## 许可证
+[添加许可证信息]
+
+## 联系方式
+[添加联系方式]

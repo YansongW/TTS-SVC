@@ -78,6 +78,15 @@ CELERY_CONFIG = {
     'worker_prefetch_multiplier': 4,
     'task_queue_max_priority': 10,
     'task_default_priority': 5,
+    'task_acks_late': True,
+    'task_reject_on_worker_lost': True,
+    'task_annotations': {
+        'app.tasks.process_task': {
+            'rate_limit': '10/m',
+            'max_retries': 3,
+            'default_retry_delay': 60
+        }
+    }
 }
 
 # 文件上传配置
@@ -91,3 +100,26 @@ ALLOWED_AUDIO_FORMATS = {'wav', 'mp3'}
 MAX_AUDIO_SIZE = 50 * 1024 * 1024  # 50MB
 AUDIO_SAMPLE_RATE = 44100
 AUDIO_CHANNELS = 1 
+
+# 音频转换配置
+AUDIO_FORMATS = {
+    'input': ['wav', 'mp3', 'flac'],
+    'output': 'wav'
+}
+
+# Hubert模型配置
+HUBERT_MODEL_PATH = os.path.join(SVC_DIR, 'pretrain', 'hubert-soft-0d54a1f4.pt')
+
+# SVC推理配置
+SVC_INFERENCE_CONFIG = {
+    'auto_predict_f0': False,
+    'cluster_model_path': '',
+    'speaker_id': int(os.getenv('SVC_SPEAKER_ID', 0)),
+    'noise_scale': float(os.getenv('SVC_NOISE_SCALE', 0.4)),
+    'f0_method': os.getenv('SVC_F0_METHOD', 'dio'),
+    'device': os.getenv('SVC_DEVICE', 'cuda:0')
+}
+
+# 数据库备份配置
+DB_BACKUP_DIR = os.path.join(DATA_DIR, 'backups')
+os.makedirs(DB_BACKUP_DIR, exist_ok=True)
