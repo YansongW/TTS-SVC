@@ -10,4 +10,17 @@ torch==2.0.1
 numpy==1.24.3
 soundfile==0.12.1
 librosa==0.10.0
-scipy==1.10.1 
+scipy==1.10.1
+psutil==5.9.5
+pyyaml==6.0.1
+cryptography==41.0.3
+pywin32==306; platform_system == "Windows"
+wmi==1.5.1; platform_system == "Windows"
+fairseq==0.12.2
+praat-parselmouth==0.4.3
+pyworld==0.3.3
+tqdm==4.65.0
+torch-complex==0.4.3
+einops==0.6.1
+matplotlib==3.7.1
+tensorboard==2.13.0 

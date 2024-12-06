@@ -56,8 +56,8 @@ sudo apt install redis-server
 ### 2. 克隆项目
 
 ```bash
-git clone [项目地址]
-cd tts-svc-system
+git clone https://github.com/YansongW/TTS-SVC
+cd TTS-SVC
 ```
 
 ### 3. 配置环境变量

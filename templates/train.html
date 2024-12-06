@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Train SVC Model</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <h1>Train New Voice Model</h1>
+    
+    <form method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="audio">Training Audio:</label>
+            <input type="file" id="audio" name="audio" accept=".wav,.mp3" required>
+            <small>Upload clean voice recordings for training</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="speaker_name">Speaker Name:</label>
+            <input type="text" id="speaker_name" name="speaker_name" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="description">Description:</label>
+            <textarea id="description" name="description" rows="3"></textarea>
+        </div>
+        
+        <h3>Training Parameters</h3>
+        
+        <div class="form-group">
+            <label for="epochs">Training Epochs:</label>
+            <input type="number" id="epochs" name="epochs" value="100" min="1">
+        </div>
+        
+        <div class="form-group">
+            <label for="batch_size">Batch Size:</label>
+            <input type="number" id="batch_size" name="batch_size" value="16" min="1">
+        </div>
+        
+        <div class="form-group">
+            <label for="learning_rate">Learning Rate:</label>
+            <input type="number" id="learning_rate" name="learning_rate" 
+                   value="0.0001" step="0.0001" min="0">
+        </div>
+        
+        <button type="submit">Start Training</button>
+    </form>
+    
+    <div id="training-status" style="display: none;">
+        <h2>Training Progress</h2>
+        <div class="progress-bar">
+            <div class="progress-bar-fill" style="width: 0%"></div>
+        </div>
+        <p id="status-text">Preparing...</p>
+    </div>
+    
+    <script>
+        function updateTrainingProgress() {
+            const statusDiv = document.getElementById('training-status');
+            const progressBar = document.querySelector('.progress-bar-fill');
+            const statusText = document.getElementById('status-text');
+            
+            // 获取训练ID
+            const trainId = document.getElementById('train-id').value;
+            if (!trainId) return;
+            
+            // 轮询进度
+            fetch(`/train/progress/${trainId}`)
+                .then(response => response.json())
+                .then(data => {
+                    statusDiv.style.display = 'block';
+                    progressBar.style.width = `${data.progress}%`;
+                    statusText.textContent = data.message;
+                    
+                    if (data.status !== 'completed' && data.status !== 'error') {
+                        setTimeout(updateTrainingProgress, 5000);
+                    }
+                })
+                .catch(error => {
+                    statusText.textContent = `Error: ${error}`;
+                });
+        }
+
+        // 表单提交处理
+        document.querySelector('form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            
+            try {
+                const response = await fetch('/train', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    // 设置训练ID并开始监控进度
+                    document.getElementById('train-id').value = data.train_id;
+                    updateTrainingProgress();
+                } else {
+                    alert(`Training failed: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error}`);
+            }
+        });
+    </script>
+</body>
+</html> 

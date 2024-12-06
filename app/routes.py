@@ -6,6 +6,8 @@ import json
 from werkzeug.utils import secure_filename
 import logging
 from config import ALLOWED_EXTENSIONS
+from .model_library import SVCModelLibrary
+from .trainer import SVCTrainer
 
 main = Blueprint('main', __name__)
 
@@ -155,3 +157,73 @@ def upload():
     except Exception as e:
         logger.error(f"Upload failed: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500 
+
+@main.route('/models')
+def list_models():
+    """列出可用模型"""
+    model_library = SVCModelLibrary()
+    models = model_library.get_available_models()
+    return render_template('models.html', models=models)
+
+@main.route('/train', methods=['GET', 'POST'])
+def train_model():
+    """训练新模型"""
+    if request.method == 'POST':
+        try:
+            # 获取音频文件
+            audio_file = request.files['audio']
+            if not audio_file:
+                return jsonify({'error': 'No audio file'}), 400
+                
+            # 获取配置
+            speaker_name = request.form.get('speaker_name')
+            if not speaker_name:
+                return jsonify({'error': 'No speaker name'}), 400
+                
+            config = {
+                'speaker_name': speaker_name,
+                'description': request.form.get('description', ''),
+                'epochs': int(request.form.get('epochs', 100)),
+                'batch_size': int(request.form.get('batch_size', 16)),
+                'learning_rate': float(request.form.get('learning_rate', 0.0001))
+            }
+            
+            # 保存音频文件
+            audio_path = os.path.join(
+                app.config['UPLOAD_FOLDER'],
+                secure_filename(audio_file.filename)
+            )
+            audio_file.save(audio_path)
+            
+            # 准备训练
+            trainer = SVCTrainer()
+            train_dir = trainer.prepare_training_data(audio_path, speaker_name)
+            
+            # 开始训练
+            result = trainer.train_model(train_dir, config)
+            if result:
+                return jsonify({
+                    'status': 'success',
+                    'model_path': result['model_path']
+                })
+            else:
+                return jsonify({'error': 'Training failed'}), 500
+                
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+            
+    return render_template('train.html') 
+
+@main.route('/train/progress/<train_id>')
+def training_progress(train_id):
+    """获取训练进度"""
+    try:
+        trainer = SVCTrainer()
+        progress = trainer.get_training_progress(train_id)
+        return jsonify(progress)
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'progress': 0,
+            'message': str(e)
+        }), 500

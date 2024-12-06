@@ -54,12 +54,14 @@ services:
 alerts:
   email:
     enabled: true
-    smtp_server: "smtp.example.com"
-    smtp_port: 587
-    username: "alerts@example.com"
-    password: "${SMTP_PASSWORD}"
-    from_address: "alerts@example.com"
-    to_addresses: ["admin@example.com"]
+    smtp_server: "${SMTP_SERVER}"
+    smtp_port: "${SMTP_PORT}"
+    username: "${SMTP_USER}"
+    password: "${SMTP_PASS}"
+    from_address: "${SMTP_FROM}"
+    to_addresses: "${SMTP_TO}"
+    use_tls: true
+    cert_verify: true
     
   webhook:
     enabled: false
@@ -82,3 +84,53 @@ aggregation:
       type: "avg"
     - name: "disk_usage"
       type: "max" 
+
+# 进程优先级配置
+process_priority:
+  redis: "high"
+  celery: "normal"
+  flask: "normal"
+  background_tasks: "low"
+
+# 进程资源限制
+process_limits:
+  redis:
+    memory_max: 1024  # MB
+    cpu_affinity: [0, 1]  # CPU核心
+  celery:
+    memory_max: 2048
+    cpu_affinity: [0, 1, 2, 3]
+  flask:
+    memory_max: 512
+    cpu_affinity: [0, 1] 
+
+# 进程重启策略
+restart_policy:
+  max_restarts: 3  # 最大重启次数
+  min_interval: 60  # 最小重启间隔(秒)
+  backoff_factor: 2  # 重试延迟增长因子
+  max_backoff: 300  # 最大重试延迟(秒)
+
+# 进程健康检查配置
+health_check:
+  interval: 30  # 检查间隔(秒)
+  timeout: 5   # 检查超时(秒)
+  thresholds:
+    cpu_max: 90  # CPU使用率阈值(%)
+    memory_max: 90  # 内存使用率阈值(%)
+    response_timeout: 5  # 响应超时(秒)
+  
+  # 服务特定配置
+  services:
+    flask:
+      url: "http://localhost:5000/health"
+      expected_status: 200
+      response_pattern: '{"status":"ok"}'
+    
+    celery:
+      check_command: "celery -A app.celery status"
+      expected_output: "OK"
+    
+    redis:
+      check_command: "redis-cli ping"
+      expected_output: "PONG"

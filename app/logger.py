@@ -1,6 +1,7 @@
 import logging
 import logging.handlers
 from config import LOG_FORMAT, LOG_FILE, LOG_LEVEL
+import sys
 
 def setup_logging():
     """配置日志系统"""
@@ -25,3 +26,19 @@ def setup_logging():
     # 设置第三方库的日志级别
     logging.getLogger('werkzeug').setLevel(logging.WARNING)
     logging.getLogger('celery').setLevel(logging.WARNING) 
+
+def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:
+    """设置日志器"""
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    
+    if not logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(
+            logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+        )
+        logger.addHandler(handler)
+        
+    return logger 

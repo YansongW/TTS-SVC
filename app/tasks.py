@@ -4,6 +4,9 @@ from .utils import generate_tts, apply_svc, cleanup_files
 import logging
 import traceback
 from celery.exceptions import SoftTimeLimitExceeded
+import os
+from .inference import SVCInference
+from config import SVC_OUTPUT_DIR
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -104,14 +107,45 @@ def process_batch_task(self, batch_id):
         batch.status = 'Processing'
         db.session.commit()
         
+        # 初始化推理器
+        inferencer = SVCInference()
+        if not inferencer.load_models():
+            raise RuntimeError("Failed to load models")
+        
         # 处理每个子任务
         for task in batch.tasks:
-            process_task.delay(task.id, batch_id)
-        
-        logger.info(f"Batch ID {batch_id} started processing.")
+            try:
+                # 生成输出路径
+                output_path = os.path.join(
+                    SVC_OUTPUT_DIR,
+                    f"svc_{task.id}.wav"
+                )
+                
+                # 执行推理
+                if inferencer.infer(
+                    task.tts_output,
+                    output_path,
+                    pitch_shift=task.pitch,
+                    speaker_id=0  # TODO: 支持多说话人
+                ):
+                    task.svc_output = output_path
+                    task.status = 'Completed'
+                else:
+                    task.status = 'Error'
+                    task.error_message = "Inference failed"
+                    
+                db.session.commit()
+                
+            except Exception as e:
+                task.status = 'Error'
+                task.error_message = str(e)
+                db.session.commit()
+                logger.error(f"Task {task.id} failed: {str(e)}")
+                
+        batch.status = 'Completed'
+        db.session.commit()
         
     except Exception as e:
-        error_msg = f"Error: {str(e)}\n{traceback.format_exc()}"
         batch.status = 'Error'
         db.session.commit()
-        logger.error(error_msg)
+        logger.error(f"Batch {batch_id} failed: {str(e)}")

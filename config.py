@@ -108,7 +108,13 @@ AUDIO_FORMATS = {
 }
 
 # Hubert模型配置
-HUBERT_MODEL_PATH = os.path.join(SVC_DIR, 'pretrain', 'hubert-soft-0d54a1f4.pt')
+HUBERT_CONFIG = {
+    'model_path': os.path.join(SVC_DIR, 'pretrain', 'hubert-soft-0d54a1f4.pt'),
+    'download_url': 'https://github.com/bshall/hubert/releases/download/v0.1/hubert-soft-0d54a1f4.pt',
+    'device': os.getenv('SVC_DEVICE', 'cuda:0'),
+    'sample_rate': 16000,
+    'hop_length': 320
+}
 
 # SVC推理配置
 SVC_INFERENCE_CONFIG = {
@@ -123,3 +129,11 @@ SVC_INFERENCE_CONFIG = {
 # 数据库备份配置
 DB_BACKUP_DIR = os.path.join(DATA_DIR, 'backups')
 os.makedirs(DB_BACKUP_DIR, exist_ok=True)
+
+# 安全配置
+SECURITY_CONFIG = {
+    'key_file': os.path.join(DATA_DIR, '.keys'),
+    'min_key_length': 32,
+    'allowed_ips': ['127.0.0.1'],
+    'file_permissions': 0o600
+}

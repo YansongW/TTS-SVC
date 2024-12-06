@@ -109,9 +109,6 @@ def get_safe_filename(filename):
 def convert_audio_format(input_path, output_format='wav'):
     """转换音频格式"""
     try:
-        import soundfile as sf
-        import librosa
-        
         # 读取音频
         y, sr = librosa.load(input_path, sr=AUDIO_SAMPLE_RATE, mono=True)
         
@@ -227,3 +224,18 @@ def cleanup_files(*file_paths):
                 logger.info(f"Cleaned up file: {path}")
             except Exception as e:
                 logger.error(f"Failed to clean up file {path}: {str(e)}")
+
+def setup_svc_directories():
+    """创建SVC所需目录"""
+    directories = [
+        'dataset_raw',      # 原始数据集
+        'dataset',          # 预处理后的数据集
+        'logs/44k',         # 模型保存目录
+        'raw',              # 推理源音频
+        'results',          # 推理结果
+        'pretrain',         # 预训练模型
+        'configs'           # 配置文件
+    ]
+    
+    for dir_path in directories:
+        os.makedirs(dir_path, exist_ok=True)

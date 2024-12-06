@@ -27,6 +27,17 @@
             <input type="text" id="melody" name="melody" value="default" required>
         </div>
         
+        <div class="form-group">
+            <label for="model">Voice Model:</label>
+            <select id="model" name="model" required>
+                {% for model in models %}
+                <option value="{{ model.name }}">
+                    {{ model.speaker_name }} - {{ model.description }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
         <button type="submit">Submit</button>
     </form>
     <a href="{{ url_for('main.index') }}" class="button">Back to Home</a>
