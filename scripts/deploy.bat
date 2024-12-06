@@ -56,7 +56,7 @@ call venv\Scripts\activate.bat
 call :log "安装项目依赖..."
 pip install -r requirements.txt
 
-:: ���装so-vits-svc
+:: 安装so-vits-svc
 if not exist so-vits-svc (
     call :log "安装so-vits-svc..."
     git clone https://github.com/svc-develop-team/so-vits-svc.git
@@ -87,4 +87,4 @@ call :log "所有服务已启动"
 call :log "访问 http://localhost:5000 使用系统"
 call :log "部署完成!"
 
-endlocal 
+endlocal

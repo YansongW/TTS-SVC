@@ -47,7 +47,7 @@ source venv/bin/activate  # Linux/Mac
 venv\Scripts\activate  # Windows
 ```
 
-### 3. 安装依赖
+### 3. ��装依赖
 
 ```bash
 pip install -r requirements.txt
@@ -119,7 +119,7 @@ python run.py
 3. 输入要转换的文本
 4. 设置音高(pitch)和语速(speed)参数
 5. 选择音色(melody)
-6. 提交任务并等待处理完成
+6. 提交任务并等待处理完���
 7. 下载生成的音频文件
 
 ### 批量转换
@@ -191,3 +191,52 @@ project/
 - tasks.py: 异步任务处理
 - utils.py: 工具函数
 # TTS-SVC
+
+## 快速部署
+
+### Linux/Mac用户
+```bash
+# 克隆项目
+git clone [项目地址]
+cd tts-svc-system
+
+# 运行部署脚本
+chmod +x scripts/deploy.sh
+./scripts/deploy.sh
+```
+
+### Windows用户
+```batch
+# 克隆项目
+git clone [项目地址]
+cd tts-svc-system
+
+# 运行部署脚本
+scripts\deploy.bat
+```
+
+部署脚本会自动完成以下操作：
+1. 检查系统环境（Python、CUDA、Redis）
+2. 创建并配置虚拟环境
+3. 安装所有依赖
+4. 安装so-vits-svc
+5. 初始化数据库
+6. 启动所有必要服务
+
+完成后，访问 http://localhost:5000 即可使用系统。
+
+### 注意事项
+1. 确保已安装以下基础软件：
+   - Python 3.8+
+   - Git
+   - Redis
+   - CUDA（推荐但不是必需）
+
+2. Windows用户可能需要手动安装Redis服务器：
+   - 下载地址：https://github.com/microsoftarchive/redis/releases
+   - 安装为Windows服务
+
+3. 如果部署过程中遇到问题：
+   - 检查日志文件：logs/app.log
+   - 检查控制台输出的错误信息
+   - 确保所有端口（5000, 6379）未被占用
