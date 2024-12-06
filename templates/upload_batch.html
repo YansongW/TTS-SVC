@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Batch Task</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <h1>Upload Batch Task</h1>
+    <form method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="batch_name">Batch Name:</label>
+            <input type="text" id="batch_name" name="batch_name" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="texts_file">Text File (每行一个文本):</label>
+            <input type="file" id="texts_file" name="texts_file" accept=".txt" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="params">Parameters (JSON格式):</label>
+            <textarea id="params" name="params" rows="10" required>
+[
+    {
+        "pitch": 1.0,
+        "speed": 1.0,
+        "melody": "default"
+    },
+    {
+        "pitch": 1.2,
+        "speed": 0.8,
+        "melody": "happy"
+    }
+]
+            </textarea>
+        </div>
+        
+        <button type="submit">Submit Batch</button>
+    </form>
+    <a href="{{ url_for('main.index') }}" class="button">Back to Home</a>
+</body>
+</html> 

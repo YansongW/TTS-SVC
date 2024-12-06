@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TTS + SVC Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script>
+        function updateStatus(taskId, isBatch) {
+            const url = isBatch ? `/batch_status/${taskId}` : `/status/${taskId}`;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const element = document.getElementById(`status-${taskId}`);
+                    if (isBatch) {
+                        element.textContent = `${data.status} (${data.progress}% - ${data.completed}/${data.total})`;
+                    } else {
+                        element.textContent = data.status;
+                        if (data.error) {
+                            element.title = data.error;
+                            element.classList.add('error');
+                        }
+                    }
+                    
+                    if (!['Completed', 'Error'].includes(data.status)) {
+                        setTimeout(() => updateStatus(taskId, isBatch), 2000);
+                    }
+                });
+        }
+        
+        // 初始化状态更新
+        document.addEventListener('DOMContentLoaded', () => {
+            const tasks = document.querySelectorAll('[data-task-id]');
+            tasks.forEach(task => {
+                const taskId = task.dataset.taskId;
+                const isBatch = task.dataset.isBatch === 'true';
+                if (!['Completed', 'Error'].includes(task.dataset.status)) {
+                    updateStatus(taskId, isBatch);
+                }
+            });
+        });
+    </script>
+</head>
+<body>
+    <h1>TTS + SVC Generator</h1>
+    <div class="actions">
+        <a href="{{ url_for('main.upload') }}" class="button">Upload Single Task</a>
+        <a href="{{ url_for('main.upload_batch') }}" class="button">Upload Batch Task</a>
+    </div>
+    
+    <h2>Batch Tasks</h2>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Created At</th>
+        </tr>
+        {% for batch in batches %}
+        <tr>
+            <td>{{ batch.id }}</td>
+            <td>{{ batch.name }}</td>
+            <td id="status-{{ batch.id }}" data-task-id="{{ batch.id }}" 
+                data-is-batch="true" data-status="{{ batch.status }}">
+                {{ batch.status }} ({{ batch.progress }}% - {{ batch.completed_tasks }}/{{ batch.total_tasks }})
+            </td>
+            <td>{{ batch.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    
+    <h2>Single Tasks</h2>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Text</th>
+            <th>Status</th>
+            <th>Created At</th>
+            <th>Actions</th>
+        </tr>
+        {% for task in tasks %}
+        <tr>
+            <td>{{ task.id }}</td>
+            <td>{{ task.text[:50] }}...</td>
+            <td id="status-{{ task.id }}" data-task-id="{{ task.id }}" 
+                data-is-batch="false" data-status="{{ task.status }}"
+                {% if task.error_message %}title="{{ task.error_message }}"{% endif %}
+                class="{% if task.status == 'Error' %}error{% endif %}">
+                {{ task.status }}
+            </td>
+            <td>{{ task.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+            <td>
+                {% if task.tts_output %}
+                <a href="{{ url_for('main.download', task_id=task.id, file_type='tts') }}">Download TTS</a>
+                {% endif %}
+                {% if task.svc_output %}
+                <a href="{{ url_for('main.download', task_id=task.id, file_type='svc') }}">Download SVC</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
